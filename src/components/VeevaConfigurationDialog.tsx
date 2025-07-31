@@ -46,20 +46,16 @@ const VeevaConfigurationDialog = ({ onConfigurationSaved }: VeevaConfigurationDi
       if (error) throw error;
 
       // Test connection and authenticate
-      const response = await fetch('/api/veeva/authenticate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
+      const { data: authData, error: authError } = await supabase.functions.invoke('veeva-authenticate', {
+        body: {
           veevaUrl: formData.veevaUrl,
           username: formData.username,
           password: formData.password,
-        }),
+        },
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to authenticate with Veeva CTMS');
+      if (authError || !authData?.success) {
+        throw new Error(authData?.error || 'Failed to authenticate with Veeva CTMS');
       }
 
       toast({
