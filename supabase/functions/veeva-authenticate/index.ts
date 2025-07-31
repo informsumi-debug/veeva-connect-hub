@@ -20,8 +20,8 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Authenticate with Veeva CTMS API
-    const authResponse = await fetch(`${veevaUrl}/api/v1/auth`, {
+    // Authenticate with Veeva CTMS API (using the latest stable version)
+    const authResponse = await fetch(`${veevaUrl}/api/v24.3/auth`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
