@@ -14,14 +14,20 @@ serve(async (req) => {
   try {
     const { veevaUrl, username, password } = await req.json()
 
+    console.log('Received authentication request for URL:', veevaUrl)
+
     // Initialize Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
+    // Construct the authentication URL
+    const authUrl = `${veevaUrl}/api/v24.3/auth`
+    console.log('Attempting authentication with URL:', authUrl)
+
     // Authenticate with Veeva CTMS API (using the latest stable version)
-    const authResponse = await fetch(`${veevaUrl}/api/v24.3/auth`, {
+    const authResponse = await fetch(authUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -32,11 +38,17 @@ serve(async (req) => {
       }),
     })
 
+    console.log('Veeva API response status:', authResponse.status)
+    console.log('Veeva API response headers:', Object.fromEntries(authResponse.headers.entries()))
+
     if (!authResponse.ok) {
-      throw new Error(`Veeva authentication failed: ${authResponse.statusText}`)
+      const errorText = await authResponse.text()
+      console.error('Veeva authentication failed:', authResponse.status, errorText)
+      throw new Error(`Veeva authentication failed: ${authResponse.status} - ${errorText}`)
     }
 
     const authData = await authResponse.json()
+    console.log('Veeva authentication response:', authData)
     
     if (!authData.sessionId) {
       throw new Error('No session ID received from Veeva CTMS')
