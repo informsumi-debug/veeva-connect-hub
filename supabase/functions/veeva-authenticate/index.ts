@@ -12,7 +12,14 @@ serve(async (req) => {
   }
 
   try {
-    const { veevaUrl, username, password } = await req.json()
+    console.log('=== Veeva Authentication Function Started ===')
+    console.log('Request method:', req.method)
+    console.log('Request headers:', Object.fromEntries(req.headers.entries()))
+    
+    const requestBody = await req.json()
+    console.log('Request body received:', requestBody)
+    
+    const { veevaUrl, username, password } = requestBody
 
     console.log('Received authentication request for URL:', veevaUrl)
 
