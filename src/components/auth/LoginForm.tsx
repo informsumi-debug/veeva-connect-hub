@@ -57,12 +57,19 @@ const LoginForm = ({ onSuccess }: LoginFormProps) => {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            display_name: displayName,
+            organization: organization,
+          }
+        }
       });
 
       if (error) throw error;
 
-      if (data.user) {
-        // Create profile
+      if (data.user && data.session) {
+        // Create profile with the authenticated session
         const { error: profileError } = await supabase
           .from('profiles')
           .insert({
@@ -76,10 +83,15 @@ const LoginForm = ({ onSuccess }: LoginFormProps) => {
 
         toast({
           title: "Account created!",
-          description: "Please check your email to verify your account.",
+          description: "Successfully created your account and profile.",
         });
 
         onSuccess();
+      } else {
+        toast({
+          title: "Account created!",
+          description: "Please check your email to verify your account.",
+        });
       }
     } catch (error: any) {
       toast({
