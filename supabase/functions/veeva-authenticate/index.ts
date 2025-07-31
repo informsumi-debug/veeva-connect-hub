@@ -16,8 +16,14 @@ serve(async (req) => {
     console.log('Request method:', req.method)
     console.log('Request headers:', Object.fromEntries(req.headers.entries()))
     
-    const requestBody = await req.json()
-    console.log('Request body received:', requestBody)
+    let requestBody
+    try {
+      requestBody = await req.json()
+      console.log('Request body received:', requestBody)
+    } catch (parseError) {
+      console.error('JSON parsing error:', parseError)
+      throw new Error('Invalid JSON in request body')
+    }
     
     const { veevaUrl, username, password } = requestBody
 

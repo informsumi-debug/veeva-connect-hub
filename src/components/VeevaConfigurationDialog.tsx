@@ -52,6 +52,9 @@ const VeevaConfigurationDialog = ({ onConfigurationSaved }: VeevaConfigurationDi
           username: formData.username,
           password: formData.password,
         },
+        headers: {
+          Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+        },
       });
 
       if (authError || !authData?.success) {
