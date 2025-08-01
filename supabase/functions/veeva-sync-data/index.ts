@@ -12,7 +12,9 @@ serve(async (req) => {
   }
 
   try {
+    console.log('=== Veeva Sync Data Function Started ===')
     const { configurationId } = await req.json()
+    console.log('Configuration ID received:', configurationId)
 
     // Initialize Supabase client
     const supabaseClient = createClient(
@@ -34,6 +36,7 @@ serve(async (req) => {
     }
 
     // Get configuration and active session
+    console.log('Looking up configuration and session...')
     const { data: config, error: configError } = await supabaseClient
       .from('veeva_configurations')
       .select(`
@@ -46,15 +49,22 @@ serve(async (req) => {
       .gte('veeva_sessions.expires_at', new Date().toISOString())
       .single()
 
+    console.log('Configuration lookup result:', { config, configError })
+
     if (configError || !config) {
       throw new Error('No active session found for this configuration')
     }
 
     const sessionId = config.veeva_sessions[0].session_id
     const veevaUrl = config.veeva_url
+    console.log('Using session ID:', sessionId?.substring(0, 20) + '...')
+    console.log('Veeva URL:', veevaUrl)
 
-    // Fetch studies from Veeva CTMS
-    const studiesResponse = await fetch(`${veevaUrl}/api/v1/objects/clinical_study__c`, {
+    // Fetch studies from Veeva CTMS - Using correct API endpoint
+    const studiesApiUrl = `${veevaUrl}/api/v24.3/objects/study__v`
+    console.log('Fetching studies from:', studiesApiUrl)
+    
+    const studiesResponse = await fetch(studiesApiUrl, {
       method: 'GET',
       headers: {
         'Authorization': sessionId,
@@ -62,11 +72,19 @@ serve(async (req) => {
       },
     })
 
+    console.log('Studies response status:', studiesResponse.status)
+    console.log('Studies response headers:', Object.fromEntries(studiesResponse.headers.entries()))
+
     if (!studiesResponse.ok) {
       throw new Error(`Failed to fetch studies: ${studiesResponse.statusText}`)
     }
 
     const studiesData = await studiesResponse.json()
+    console.log('Studies data received:', { 
+      success: studiesData.responseStatus === 'SUCCESS',
+      count: studiesData.data?.length || 0,
+      firstStudy: studiesData.data?.[0]?.name || 'N/A'
+    })
 
     // Process and store study data
     const studyInserts = studiesData.data?.map((study: any) => ({
@@ -96,10 +114,13 @@ serve(async (req) => {
     const milestoneInserts = []
     
     for (const study of studiesData.data || []) {
-      // Fetch study milestones
-      const milestonesResponse = await fetch(
-        `${veevaUrl}/api/v1/objects/study_milestone__c?where=study__c='${study.id}'`,
-        {
+      console.log(`Fetching milestones for study: ${study.name} (${study.id})`)
+      
+      // Fetch study milestones - Updated API endpoint
+      const milestonesApiUrl = `${veevaUrl}/api/v24.3/objects/study_milestone__v?where=study__v='${study.id}'`
+      console.log('Fetching study milestones from:', milestonesApiUrl)
+      
+      const milestonesResponse = await fetch(milestonesApiUrl, {
           method: 'GET',
           headers: {
             'Authorization': sessionId,
@@ -131,10 +152,11 @@ serve(async (req) => {
         milestoneInserts.push(...studyMilestones)
       }
 
-      // Fetch site milestones
-      const siteMilestonesResponse = await fetch(
-        `${veevaUrl}/api/v1/objects/site_milestone__c?where=study__c='${study.id}'`,
-        {
+      // Fetch site milestones - Updated API endpoint
+      const siteMilestonesApiUrl = `${veevaUrl}/api/v24.3/objects/site_milestone__v?where=study__v='${study.id}'`
+      console.log('Fetching site milestones from:', siteMilestonesApiUrl)
+      
+      const siteMilestonesResponse = await fetch(siteMilestonesApiUrl, {
           method: 'GET',
           headers: {
             'Authorization': sessionId,

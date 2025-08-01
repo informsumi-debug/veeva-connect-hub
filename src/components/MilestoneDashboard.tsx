@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Search, Filter, RefreshCw, Loader2 } from "lucide-react"
 import MilestoneCard from "./MilestoneCard"
+import StudySelector from "./StudySelector"
 import { supabase } from "@/integrations/supabase/client"
 import { useToast } from "@/hooks/use-toast"
 
@@ -38,6 +39,7 @@ const MilestoneDashboard = () => {
   const [isLoading, setIsLoading] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
+  const [selectedStudy, setSelectedStudy] = useState<string>("")
   const { toast } = useToast()
 
   const fetchData = async () => {
@@ -153,12 +155,23 @@ const MilestoneDashboard = () => {
   })
 
   const filterMilestones = (milestones: Milestone[]) => {
-    if (!searchTerm) return milestones
-    return milestones.filter(milestone =>
-      milestone.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      milestone.study_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      milestone.assigned_to?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    let filtered = milestones
+
+    // Filter by selected study
+    if (selectedStudy) {
+      filtered = filtered.filter(milestone => milestone.study_id === selectedStudy)
+    }
+
+    // Filter by search term
+    if (searchTerm) {
+      filtered = filtered.filter(milestone =>
+        milestone.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        milestone.study_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        milestone.assigned_to?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    }
+
+    return filtered
   }
 
   if (isLoading) {
@@ -189,8 +202,13 @@ const MilestoneDashboard = () => {
         </Button>
       </div>
 
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-md">
+      {/* Study Selector and Search/Filter Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <StudySelector 
+          onStudySelect={setSelectedStudy}
+          selectedStudy={selectedStudy}
+        />
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
           <Input
             placeholder="Search milestones..."
@@ -199,10 +217,22 @@ const MilestoneDashboard = () => {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        <Button variant="outline" size="sm">
-          <Filter className="h-4 w-4 mr-2" />
-          Filter
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="flex-1">
+            <Filter className="h-4 w-4 mr-2" />
+            Filter
+          </Button>
+          {selectedStudy && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setSelectedStudy("")}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Clear
+            </Button>
+          )}
+        </div>
       </div>
 
       <Tabs defaultValue="study" className="w-full">
