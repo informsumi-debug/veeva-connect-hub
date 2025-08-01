@@ -9,6 +9,9 @@ interface MilestoneCardProps {
   siteName?: string;
   status: "pending" | "completed" | "overdue";
   dueDate: string;
+  plannedFinishDate?: string;
+  baselineFinishDate?: string;
+  actualFinishDate?: string;
   progress: number;
   assignedTo: string;
   priority: "high" | "medium" | "low";
@@ -19,7 +22,10 @@ const MilestoneCard = ({
   studyId, 
   siteName, 
   status, 
-  dueDate, 
+  dueDate,
+  plannedFinishDate,
+  baselineFinishDate,
+  actualFinishDate,
   progress, 
   assignedTo, 
   priority 
@@ -103,6 +109,28 @@ const MilestoneCard = ({
           <div className="flex items-center gap-1 text-sm text-muted-foreground">
             <Users className="h-3 w-3" />
             <span>Assigned to: {assignedTo}</span>
+          </div>
+          
+          {/* Date fields section */}
+          <div className="space-y-1 text-xs border-t pt-2">
+            {plannedFinishDate && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Planned Finish:</span>
+                <span className="font-medium">{plannedFinishDate}</span>
+              </div>
+            )}
+            {baselineFinishDate && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Baseline Finish:</span>
+                <span className="font-medium">{baselineFinishDate}</span>
+              </div>
+            )}
+            {actualFinishDate && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Actual Finish:</span>
+                <span className="font-medium text-success">{actualFinishDate}</span>
+              </div>
+            )}
           </div>
         </div>
       </CardContent>

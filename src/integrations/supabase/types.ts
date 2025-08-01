@@ -16,13 +16,16 @@ export type Database = {
     Tables: {
       milestone_data: {
         Row: {
+          actual_finish_date: string | null
           assigned_to: string | null
+          baseline_finish_date: string | null
           configuration_id: string
           data: Json | null
           due_date: string | null
           id: string
           last_updated: string
           milestone_type: string
+          planned_finish_date: string | null
           priority: string | null
           progress: number | null
           site_id: string | null
@@ -31,13 +34,16 @@ export type Database = {
           title: string
         }
         Insert: {
+          actual_finish_date?: string | null
           assigned_to?: string | null
+          baseline_finish_date?: string | null
           configuration_id: string
           data?: Json | null
           due_date?: string | null
           id?: string
           last_updated?: string
           milestone_type: string
+          planned_finish_date?: string | null
           priority?: string | null
           progress?: number | null
           site_id?: string | null
@@ -46,13 +52,16 @@ export type Database = {
           title: string
         }
         Update: {
+          actual_finish_date?: string | null
           assigned_to?: string | null
+          baseline_finish_date?: string | null
           configuration_id?: string
           data?: Json | null
           due_date?: string | null
           id?: string
           last_updated?: string
           milestone_type?: string
+          planned_finish_date?: string | null
           priority?: string | null
           progress?: number | null
           site_id?: string | null
