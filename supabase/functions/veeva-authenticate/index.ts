@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -35,6 +36,24 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
+    // Get the user from the auth header
+    const authHeader = req.headers.get('Authorization')
+    console.log('Authorization header present:', !!authHeader)
+    
+    if (!authHeader) {
+      throw new Error('Authorization header required')
+    }
+
+    const token = authHeader.replace('Bearer ', '')
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token)
+    
+    if (userError || !user) {
+      console.error('User authentication error:', userError)
+      throw new Error('Invalid user token')
+    }
+    
+    console.log('Authenticated user ID:', user.id)
+
     // Construct the authentication URL
     const authUrl = `${veevaUrl}/api/v24.3/auth`
     console.log('Attempting authentication with URL:', authUrl)
@@ -67,35 +86,46 @@ serve(async (req) => {
       throw new Error('No session ID received from Veeva CTMS')
     }
 
-    // Get the configuration ID from the request headers or body
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      throw new Error('Authorization header required')
-    }
+    // Find the configuration for this user - let's be more flexible in our search
+    console.log('Looking for configuration with:', {
+      user_id: user.id,
+      veeva_url: veevaUrl,
+      username: username
+    })
 
-    const token = authHeader.replace('Bearer ', '')
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser(token)
-    
-    if (userError || !user) {
-      throw new Error('Invalid user token')
-    }
-
-    // Find the configuration for this user
-    const { data: config, error: configError } = await supabaseClient
+    const { data: configs, error: configError } = await supabaseClient
       .from('veeva_configurations')
-      .select('id')
+      .select('id, configuration_name, environment_name, veeva_url, username')
       .eq('user_id', user.id)
       .eq('veeva_url', veevaUrl)
       .eq('username', username)
-      .single()
 
-    if (configError || !config) {
-      throw new Error('Configuration not found')
+    console.log('Configuration search result:', { configs, configError })
+
+    if (configError) {
+      console.error('Configuration search error:', configError)
+      throw new Error(`Configuration search failed: ${configError.message}`)
     }
+
+    if (!configs || configs.length === 0) {
+      // Let's also try a broader search to see what configurations exist
+      const { data: allUserConfigs, error: allConfigError } = await supabaseClient
+        .from('veeva_configurations')
+        .select('id, configuration_name, veeva_url, username')
+        .eq('user_id', user.id)
+
+      console.log('All user configurations:', allUserConfigs)
+      throw new Error(`No matching configuration found. User has ${allUserConfigs?.length || 0} total configurations.`)
+    }
+
+    const config = configs[0] // Take the first matching configuration
+    console.log('Found configuration:', config.id)
 
     // Store the session
     const expiresAt = new Date()
     expiresAt.setHours(expiresAt.getHours() + 8) // 8 hour session
+
+    console.log('Storing session for configuration:', config.id)
 
     const { error: sessionError } = await supabaseClient
       .from('veeva_sessions')
@@ -107,17 +137,26 @@ serve(async (req) => {
       })
 
     if (sessionError) {
-      throw new Error('Failed to store session')
+      console.error('Session storage error:', sessionError)
+      throw new Error(`Failed to store session: ${sessionError.message}`)
     }
 
+    console.log('Session stored successfully')
+
     // Update configuration as active
-    await supabaseClient
+    const { error: updateError } = await supabaseClient
       .from('veeva_configurations')
       .update({ 
         is_active: true,
         last_sync: new Date().toISOString()
       })
       .eq('id', config.id)
+
+    if (updateError) {
+      console.error('Configuration update error:', updateError)
+    } else {
+      console.log('Configuration updated as active')
+    }
 
     return new Response(
       JSON.stringify({
