@@ -81,7 +81,7 @@ serve(async (req) => {
     const studiesResponse = await fetch(studiesApiUrl, {
       method: 'GET',
       headers: {
-        'Authorization': `${sessionId}`,
+        'Authorization': sessionId,
         'Accept': 'application/json'
       },
     })
@@ -100,7 +100,7 @@ serve(async (req) => {
       const objectsResponse = await fetch(objectsApiUrl, {
         method: 'GET',
         headers: {
-          'Authorization': `${sessionId}`,
+          'Authorization': sessionId,
           'Accept': 'application/json',
         },
       })
@@ -161,7 +161,7 @@ serve(async (req) => {
       const milestonesResponse = await fetch(milestonesApiUrl, {
           method: 'GET',
           headers: {
-            'Authorization': `${sessionId}`,
+            'Authorization': sessionId,
             'Accept': 'application/json',
           },
         }
@@ -197,7 +197,7 @@ serve(async (req) => {
       const siteMilestonesResponse = await fetch(siteMilestonesApiUrl, {
           method: 'GET',
           headers: {
-            'Authorization': `${sessionId}`,
+            'Authorization': sessionId,
             'Accept': 'application/json',
           },
         }
