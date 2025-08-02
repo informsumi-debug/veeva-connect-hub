@@ -35,29 +35,43 @@ serve(async (req) => {
       throw new Error('Invalid user token')
     }
 
-    // Get configuration and active session
-    console.log('Looking up configuration and session...')
+    // Get configuration and latest active session
+    console.log('Looking up configuration and latest session...')
+    
+    // First get the configuration
     const { data: config, error: configError } = await supabaseClient
       .from('veeva_configurations')
-      .select(`
-        *,
-        veeva_sessions!inner(session_id, expires_at, is_active)
-      `)
+      .select('*')
       .eq('id', configurationId)
       .eq('user_id', user.id)
-      .eq('veeva_sessions.is_active', true)
-      .gte('veeva_sessions.expires_at', new Date().toISOString())
       .single()
 
     console.log('Configuration lookup result:', { config, configError })
 
     if (configError || !config) {
-      throw new Error('No active session found for this configuration')
+      throw new Error(`Configuration not found: ${configError?.message || 'Unknown error'}`)
     }
 
-    const sessionId = config.veeva_sessions[0].session_id
+    // Get the most recent active session for this configuration
+    const { data: sessions, error: sessionError } = await supabaseClient
+      .from('veeva_sessions')
+      .select('session_id, expires_at, is_active, created_at')
+      .eq('configuration_id', configurationId)
+      .eq('is_active', true)
+      .gte('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    console.log('Session lookup result:', { sessions, sessionError })
+
+    if (sessionError || !sessions || sessions.length === 0) {
+      throw new Error(`No active session found: ${sessionError?.message || 'Session expired or not found'}`)
+    }
+
+    const sessionId = sessions[0].session_id
     const veevaUrl = config.veeva_url
-    console.log('Using session ID:', sessionId?.substring(0, 20) + '...')
+    console.log('Using latest session ID:', sessionId?.substring(0, 20) + '...')
+    console.log('Session expires at:', sessions[0].expires_at)
     console.log('Veeva URL:', veevaUrl)
 
     // Use the exact endpoint format you specified
