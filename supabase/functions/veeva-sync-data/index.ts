@@ -60,11 +60,11 @@ serve(async (req) => {
     console.log('Using session ID:', sessionId?.substring(0, 20) + '...')
     console.log('Veeva URL:', veevaUrl)
 
-    // Fetch studies from Veeva CTMS - Using correct API endpoint
-    const studiesApiUrl = `${veevaUrl}/api/v24.3/objects/study__v`
-    console.log('Fetching studies from:', studiesApiUrl)
+    // First, let's check what objects are available
+    const objectsApiUrl = `${veevaUrl}/api/v24.3/objects`
+    console.log('Fetching available objects from:', objectsApiUrl)
     
-    const studiesResponse = await fetch(studiesApiUrl, {
+    const objectsResponse = await fetch(objectsApiUrl, {
       method: 'GET',
       headers: {
         'Authorization': sessionId,
@@ -72,19 +72,57 @@ serve(async (req) => {
       },
     })
 
-    console.log('Studies response status:', studiesResponse.status)
-    console.log('Studies response headers:', Object.fromEntries(studiesResponse.headers.entries()))
-
-    if (!studiesResponse.ok) {
-      throw new Error(`Failed to fetch studies: ${studiesResponse.statusText}`)
+    if (objectsResponse.ok) {
+      const objectsData = await objectsResponse.json()
+      console.log('Available objects:', objectsData)
     }
 
-    const studiesData = await studiesResponse.json()
-    console.log('Studies data received:', { 
-      success: studiesData.responseStatus === 'SUCCESS',
-      count: studiesData.data?.length || 0,
-      firstStudy: studiesData.data?.[0]?.name || 'N/A'
-    })
+    // Try different possible study object names
+    const possibleStudyEndpoints = [
+      'study__v',
+      'study__c', 
+      'clinical_study__v',
+      'clinical_study__c',
+      'study',
+      'studies'
+    ]
+
+    let studiesData = null
+    let successfulEndpoint = null
+
+    for (const endpoint of possibleStudyEndpoints) {
+      const studiesApiUrl = `${veevaUrl}/api/v24.3/objects/${endpoint}`
+      console.log(`Trying studies endpoint: ${studiesApiUrl}`)
+      
+      const studiesResponse = await fetch(studiesApiUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': sessionId,
+          'Accept': 'application/json',
+        },
+      })
+
+      console.log(`Response status for ${endpoint}:`, studiesResponse.status)
+
+      if (studiesResponse.ok) {
+        studiesData = await studiesResponse.json()
+        successfulEndpoint = endpoint
+        console.log(`Success with endpoint: ${endpoint}`)
+        console.log('Studies data received:', { 
+          success: studiesData.responseStatus === 'SUCCESS',
+          count: studiesData.data?.length || 0,
+          firstStudy: studiesData.data?.[0]?.name || 'N/A'
+        })
+        break
+      } else {
+        const errorText = await studiesResponse.text()
+        console.log(`Failed ${endpoint}:`, studiesResponse.status, errorText)
+      }
+    }
+
+    if (!studiesData || !successfulEndpoint) {
+      throw new Error('Unable to find a valid studies endpoint. Check available objects in logs.')
+    }
 
     // Process and store study data
     const studyInserts = studiesData.data?.map((study: any) => ({
