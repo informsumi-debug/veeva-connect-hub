@@ -90,7 +90,18 @@ serve(async (req) => {
     console.log('Studies response headers:', Object.fromEntries(studiesResponse.headers.entries()))
 
     if (!studiesResponse.ok) {
-      const errorText = await studiesResponse.text()
+      let errorText;
+      const contentType = studiesResponse.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        try {
+          const errorData = await studiesResponse.json();
+          errorText = JSON.stringify(errorData);
+        } catch {
+          errorText = await studiesResponse.text();
+        }
+      } else {
+        errorText = await studiesResponse.text();
+      }
       console.error('Studies API error response:', errorText)
       
       // If the exact endpoint fails, let's try to check what objects are available
