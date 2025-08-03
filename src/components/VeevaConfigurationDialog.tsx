@@ -32,8 +32,14 @@ const VeevaConfigurationDialog = ({ onConfigurationSaved }: VeevaConfigurationDi
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
-      // Save configuration (password will be handled securely via edge function)
-      const { error } = await supabase
+      // First deactivate any existing configurations for this user
+      await supabase
+        .from('veeva_configurations')
+        .update({ is_active: false })
+        .eq('user_id', user.id);
+
+      // Save new configuration as active
+      const { data: newConfig, error } = await supabase
         .from('veeva_configurations')
         .insert({
           user_id: user.id,
@@ -41,7 +47,10 @@ const VeevaConfigurationDialog = ({ onConfigurationSaved }: VeevaConfigurationDi
           environment_name: formData.environmentName,
           veeva_url: formData.veevaUrl,
           username: formData.username,
-        });
+          is_active: true, // Mark as active immediately
+        })
+        .select('id')
+        .single();
 
       if (error) throw error;
 
