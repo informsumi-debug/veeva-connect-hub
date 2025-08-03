@@ -35,10 +35,9 @@ serve(async (req) => {
       throw new Error('Invalid user token')
     }
 
-    // Get configuration and latest active session
-    console.log('Looking up configuration and latest session...')
+    // Get configuration
+    console.log('Looking up configuration...')
     
-    // First get the configuration
     const { data: config, error: configError } = await supabaseClient
       .from('veeva_configurations')
       .select('*')
@@ -52,26 +51,25 @@ serve(async (req) => {
       throw new Error(`Configuration not found: ${configError?.message || 'Unknown error'}`)
     }
 
-    // Get the most recent active session for this configuration
-    const { data: sessions, error: sessionError } = await supabaseClient
-      .from('veeva_sessions')
-      .select('session_id, expires_at, is_active, created_at')
-      .eq('configuration_id', configurationId)
-      .eq('is_active', true)
-      .gte('expires_at', new Date().toISOString())
-      .order('created_at', { ascending: false })
-      .limit(1)
+    // Authenticate to get fresh session ID
+    console.log('Authenticating with Veeva to get fresh session...')
+    
+    const { data: authResponse, error: authError } = await supabaseClient.functions.invoke('veeva-authenticate', {
+      body: { configurationId },
+      headers: {
+        Authorization: req.headers.get('Authorization')!,
+      },
+    })
 
-    console.log('Session lookup result:', { sessions, sessionError })
+    console.log('Authentication response:', { authResponse, authError })
 
-    if (sessionError || !sessions || sessions.length === 0) {
-      throw new Error(`No active session found: ${sessionError?.message || 'Session expired or not found'}`)
+    if (authError || !authResponse?.success) {
+      throw new Error(`Authentication failed: ${authError?.message || authResponse?.error || 'Unknown error'}`)
     }
 
-    const sessionId = sessions[0].session_id
+    const sessionId = authResponse.sessionId
     const veevaUrl = config.veeva_url
-    console.log('Using latest session ID:', sessionId?.substring(0, 20) + '...')
-    console.log('Session expires at:', sessions[0].expires_at)
+    console.log('Got fresh session ID:', sessionId?.substring(0, 20) + '...')
     console.log('Veeva URL:', veevaUrl)
 
     // Use the exact endpoint format you specified
