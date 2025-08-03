@@ -51,25 +51,31 @@ serve(async (req) => {
       throw new Error(`Configuration not found: ${configError?.message || 'Unknown error'}`)
     }
 
-    // Authenticate to get fresh session ID
-    console.log('Authenticating with Veeva to get fresh session...')
-    
-    const { data: authResponse, error: authError } = await supabaseClient.functions.invoke('veeva-authenticate', {
-      body: { configurationId },
-      headers: {
-        Authorization: req.headers.get('Authorization')!,
-      },
-    })
+    // Check if we have a valid active session first
+    const { data: sessions, error: sessionError } = await supabaseClient
+      .from('veeva_sessions')
+      .select('session_id, expires_at, is_active, created_at')
+      .eq('configuration_id', configurationId)
+      .eq('is_active', true)
+      .gte('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1)
 
-    console.log('Authentication response:', { authResponse, authError })
+    let sessionId: string;
 
-    if (authError || !authResponse?.success) {
-      throw new Error(`Authentication failed: ${authError?.message || authResponse?.error || 'Unknown error'}`)
+    if (sessionError || !sessions || sessions.length === 0) {
+      console.log('No valid session found, authenticating...')
+      
+      // Need to get password - we'll need to prompt user or store encrypted
+      // For now, let's try to use a stored password or prompt
+      throw new Error('No valid session found and password not available for re-authentication. Please authenticate manually first.')
+    } else {
+      sessionId = sessions[0].session_id
+      console.log('Using existing session ID:', sessionId?.substring(0, 20) + '...')
+      console.log('Session expires at:', sessions[0].expires_at)
     }
 
-    const sessionId = authResponse.sessionId
     const veevaUrl = config.veeva_url
-    console.log('Got fresh session ID:', sessionId?.substring(0, 20) + '...')
     console.log('Veeva URL:', veevaUrl)
 
     // Use the exact endpoint format you specified
