@@ -116,6 +116,20 @@ const MilestoneDashboard = () => {
 
       if (error) throw error
 
+      // Handle the case where authentication is required
+      if (data && !data.success && data.requiresAuth) {
+        toast({
+          title: "Authentication Required",
+          description: "Please authenticate first using the 'Test Connection' button in your Veeva configuration, then try syncing again.",
+          variant: "destructive"
+        })
+        return
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || "Sync failed")
+      }
+
       toast({
         title: "Sync Complete",
         description: `Synchronized ${data.studiesCount} studies and ${data.milestonesCount} milestones`,

@@ -51,7 +51,7 @@ serve(async (req) => {
       throw new Error(`Configuration not found: ${configError?.message || 'Unknown error'}`)
     }
 
-    // Check if we have a valid active session first
+    // Get the most recent active session for this configuration
     const { data: sessions, error: sessionError } = await supabaseClient
       .from('veeva_sessions')
       .select('session_id, expires_at, is_active, created_at')
@@ -61,21 +61,31 @@ serve(async (req) => {
       .order('created_at', { ascending: false })
       .limit(1)
 
-    let sessionId: string;
+    console.log('Session lookup result:', { sessions, sessionError })
 
     if (sessionError || !sessions || sessions.length === 0) {
-      console.log('No valid session found, authenticating...')
+      // Create a fresh authentication session automatically
+      console.log('No active session found, creating new one...')
       
-      // Need to get password - we'll need to prompt user or store encrypted
-      // For now, let's try to use a stored password or prompt
-      throw new Error('No valid session found and password not available for re-authentication. Please authenticate manually first.')
-    } else {
-      sessionId = sessions[0].session_id
-      console.log('Using existing session ID:', sessionId?.substring(0, 20) + '...')
-      console.log('Session expires at:', sessions[0].expires_at)
+      // For automatic authentication, we need the password
+      // Since we can't store passwords, we'll need to prompt the user to authenticate first
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'No active session found. Please authenticate first using the "Test Connection" button in your Veeva configuration, then try syncing again.',
+          requiresAuth: true
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200, // Return 200 so the frontend can handle this gracefully
+        }
+      )
     }
 
+    const sessionId = sessions[0].session_id
     const veevaUrl = config.veeva_url
+    console.log('Using session ID:', sessionId?.substring(0, 20) + '...')
+    console.log('Session expires at:', sessions[0].expires_at)
     console.log('Veeva URL:', veevaUrl)
 
     // Use the exact endpoint format you specified
