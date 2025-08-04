@@ -108,6 +108,12 @@ const VeevaConfigurationDialog = ({ onConfigurationSaved }: VeevaConfigurationDi
     onConfigurationSaved();
   };
 
+  const handleConfigurationDeleted = () => {
+    setShowSelector(false);
+    setIsOpen(false);
+    onConfigurationSaved();
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
@@ -123,13 +129,18 @@ const VeevaConfigurationDialog = ({ onConfigurationSaved }: VeevaConfigurationDi
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Database className="h-5 w-5 text-primary" />
-                Select Veeva Configuration
+                Active Veeva Configuration
               </DialogTitle>
               <DialogDescription>
-                Your configuration was saved successfully. Please select which environment to use.
+                Your configuration was saved successfully. Review the details below.
               </DialogDescription>
             </DialogHeader>
-            <VeevaConfigurationSelector onConfigurationSelected={handleConfigurationSelected} />
+            <VeevaConfigurationSelector onConfigurationDeleted={handleConfigurationDeleted} />
+            <div className="flex justify-end pt-4">
+              <Button onClick={() => setIsOpen(false)}>
+                Close
+              </Button>
+            </div>
           </>
         ) : (
           <>

@@ -3,8 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, Circle, Settings, Globe, User } from "lucide-react";
+import { CheckCircle, Settings, Globe, User, Trash2, Calendar, Database } from "lucide-react";
 
 interface Configuration {
   id: string;
@@ -18,20 +19,20 @@ interface Configuration {
 }
 
 interface VeevaConfigurationSelectorProps {
-  onConfigurationSelected: () => void;
+  onConfigurationDeleted?: () => void;
 }
 
-const VeevaConfigurationSelector = ({ onConfigurationSelected }: VeevaConfigurationSelectorProps) => {
-  const [configurations, setConfigurations] = useState<Configuration[]>([]);
+const VeevaConfigurationSelector = ({ onConfigurationDeleted }: VeevaConfigurationSelectorProps) => {
+  const [activeConfiguration, setActiveConfiguration] = useState<Configuration | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activating, setActivating] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchConfigurations();
+    fetchActiveConfiguration();
   }, []);
 
-  const fetchConfigurations = async () => {
+  const fetchActiveConfiguration = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -40,14 +41,15 @@ const VeevaConfigurationSelector = ({ onConfigurationSelected }: VeevaConfigurat
         .from('veeva_configurations')
         .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .eq('is_active', true)
+        .maybeSingle();
 
       if (error) throw error;
-      setConfigurations(data || []);
+      setActiveConfiguration(data);
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to load configurations",
+        description: "Failed to load active configuration",
         variant: "destructive",
       });
     } finally {
@@ -55,42 +57,35 @@ const VeevaConfigurationSelector = ({ onConfigurationSelected }: VeevaConfigurat
     }
   };
 
-  const handleActivateConfiguration = async (configId: string) => {
+  const handleDeleteConfiguration = async () => {
+    if (!activeConfiguration) return;
+
     try {
-      setActivating(configId);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      setDeleting(true);
 
-      // Deactivate all configurations first
-      await supabase
-        .from('veeva_configurations')
-        .update({ is_active: false })
-        .eq('user_id', user.id);
-
-      // Activate the selected configuration
+      // Delete the configuration
       const { error } = await supabase
         .from('veeva_configurations')
-        .update({ is_active: true })
-        .eq('id', configId);
+        .delete()
+        .eq('id', activeConfiguration.id);
 
       if (error) throw error;
 
       toast({
-        title: "Configuration activated",
-        description: "Successfully switched to the selected configuration.",
+        title: "Configuration deleted",
+        description: "Your Veeva CTMS configuration has been removed successfully.",
       });
 
-      // Refresh configurations and notify parent
-      await fetchConfigurations();
-      onConfigurationSelected();
+      setActiveConfiguration(null);
+      onConfigurationDeleted?.();
     } catch (error: any) {
       toast({
         title: "Error",
-        description: "Failed to activate configuration",
+        description: "Failed to delete configuration",
         variant: "destructive",
       });
     } finally {
-      setActivating(null);
+      setDeleting(false);
     }
   };
 
@@ -107,11 +102,21 @@ const VeevaConfigurationSelector = ({ onConfigurationSelected }: VeevaConfigurat
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="animate-pulse space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-32 bg-muted rounded-lg"></div>
-          ))}
+        <div className="animate-pulse">
+          <div className="h-32 bg-muted rounded-lg"></div>
         </div>
+      </div>
+    );
+  }
+
+  if (!activeConfiguration) {
+    return (
+      <div className="text-center py-8">
+        <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-foreground mb-2">No Active Configuration</h3>
+        <p className="text-sm text-muted-foreground">
+          No active Veeva CTMS configuration found. Please create a new configuration.
+        </p>
       </div>
     );
   }
@@ -119,72 +124,82 @@ const VeevaConfigurationSelector = ({ onConfigurationSelected }: VeevaConfigurat
   return (
     <div className="space-y-4">
       <div className="text-center mb-6">
-        <h3 className="text-lg font-semibold text-foreground">Select Your Veeva Environment</h3>
+        <h3 className="text-lg font-semibold text-foreground">Active Veeva Configuration</h3>
         <p className="text-sm text-muted-foreground mt-1">
-          Choose which Veeva CTMS configuration to use for syncing data
+          Your current active Veeva CTMS configuration
         </p>
       </div>
 
-      {configurations.map((config) => (
-        <Card 
-          key={config.id} 
-          className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
-            config.is_active ? 'ring-2 ring-primary' : ''
-          }`}
-        >
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {config.is_active ? (
-                  <CheckCircle className="h-5 w-5 text-primary" />
-                ) : (
-                  <Circle className="h-5 w-5 text-muted-foreground" />
-                )}
-                <div>
-                  <CardTitle className="text-base">{config.configuration_name}</CardTitle>
-                  <CardDescription className="flex items-center gap-2 mt-1">
-                    <Badge className={getEnvironmentColor(config.environment_name)}>
-                      {config.environment_name}
-                    </Badge>
-                    {config.is_active && (
-                      <Badge variant="outline" className="text-primary border-primary">
-                        Active
-                      </Badge>
-                    )}
-                  </CardDescription>
-                </div>
+      <Card className="border-2 border-primary">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="h-5 w-5 text-primary" />
+              <div>
+                <CardTitle className="text-base">{activeConfiguration.configuration_name}</CardTitle>
+                <CardDescription className="flex items-center gap-2 mt-1">
+                  <Badge className={getEnvironmentColor(activeConfiguration.environment_name)}>
+                    {activeConfiguration.environment_name}
+                  </Badge>
+                  <Badge variant="outline" className="text-primary border-primary">
+                    Active
+                  </Badge>
+                </CardDescription>
               </div>
-              <Button
-                variant={config.is_active ? "default" : "outline"}
-                size="sm"
-                disabled={activating === config.id}
-                onClick={() => handleActivateConfiguration(config.id)}
-              >
-                {activating === config.id ? "Activating..." : config.is_active ? "Active" : "Select"}
-              </Button>
             </div>
-          </CardHeader>
-          
-          <CardContent className="pt-0">
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Globe className="h-4 w-4" />
-                <span className="truncate">{config.veeva_url}</span>
-              </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <User className="h-4 w-4" />
-                <span>{config.username}</span>
-              </div>
-              {config.last_sync && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Settings className="h-4 w-4" />
-                  <span>Last sync: {new Date(config.last_sync).toLocaleString()}</span>
-                </div>
-              )}
+            
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" className="gap-2">
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Configuration</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete this Veeva CTMS configuration? This action cannot be undone and you will need to reconfigure your connection.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDeleteConfiguration}
+                    disabled={deleting}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    {deleting ? "Deleting..." : "Delete"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </CardHeader>
+        
+        <CardContent className="pt-0">
+          <div className="space-y-3 text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Globe className="h-4 w-4 flex-shrink-0" />
+              <span className="break-all">{activeConfiguration.veeva_url}</span>
             </div>
-          </CardContent>
-        </Card>
-      ))}
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <User className="h-4 w-4 flex-shrink-0" />
+              <span>{activeConfiguration.username}</span>
+            </div>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Calendar className="h-4 w-4 flex-shrink-0" />
+              <span>Created: {new Date(activeConfiguration.created_at).toLocaleDateString()}</span>
+            </div>
+            {activeConfiguration.last_sync && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Settings className="h-4 w-4 flex-shrink-0" />
+                <span>Last sync: {new Date(activeConfiguration.last_sync).toLocaleString()}</span>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
