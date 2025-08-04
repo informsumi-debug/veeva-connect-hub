@@ -98,9 +98,10 @@ const MilestoneDashboard = () => {
       .select('id')
       .eq('user_id', user.id)
       .eq('is_active', true)
-      .single()
+      .maybeSingle()
 
-    if (error || !data) throw new Error('No active configuration found')
+    if (error) throw error
+    if (!data) throw new Error('No active configuration found')
     return data.id
   }
 
