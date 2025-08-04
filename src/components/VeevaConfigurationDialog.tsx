@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import VeevaConfigurationSelector from "./VeevaConfigurationSelector";
 import { Settings, Plus, Globe, User, Key, Database } from "lucide-react";
 
 interface VeevaConfigurationDialogProps {
@@ -15,6 +16,7 @@ interface VeevaConfigurationDialogProps {
 const VeevaConfigurationDialog = ({ onConfigurationSaved }: VeevaConfigurationDialogProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [showSelector, setShowSelector] = useState(false);
   const [formData, setFormData] = useState({
     configurationName: "",
     environmentName: "",
@@ -82,8 +84,9 @@ const VeevaConfigurationDialog = ({ onConfigurationSaved }: VeevaConfigurationDi
         username: "",
         password: "",
       });
-      setIsOpen(false);
-      onConfigurationSaved();
+      
+      // Show configuration selector after successful save
+      setShowSelector(true);
     } catch (error: any) {
       toast({
         title: "Configuration failed",
@@ -99,6 +102,12 @@ const VeevaConfigurationDialog = ({ onConfigurationSaved }: VeevaConfigurationDi
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleConfigurationSelected = () => {
+    setShowSelector(false);
+    setIsOpen(false);
+    onConfigurationSaved();
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
@@ -109,120 +118,137 @@ const VeevaConfigurationDialog = ({ onConfigurationSaved }: VeevaConfigurationDi
       </DialogTrigger>
       
       <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Database className="h-5 w-5 text-primary" />
-            Veeva CTMS Configuration
-          </DialogTitle>
-          <DialogDescription>
-            Configure your connection to Veeva CTMS to sync study and milestone data.
-          </DialogDescription>
-        </DialogHeader>
+        {showSelector ? (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5 text-primary" />
+                Select Veeva Configuration
+              </DialogTitle>
+              <DialogDescription>
+                Your configuration was saved successfully. Please select which environment to use.
+              </DialogDescription>
+            </DialogHeader>
+            <VeevaConfigurationSelector onConfigurationSelected={handleConfigurationSelected} />
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Database className="h-5 w-5 text-primary" />
+                Veeva CTMS Configuration
+              </DialogTitle>
+              <DialogDescription>
+                Configure your connection to Veeva CTMS to sync study and milestone data.
+              </DialogDescription>
+            </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="configurationName">Configuration Name</Label>
-            <div className="relative">
-              <Plus className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="configurationName"
-                placeholder="e.g., Production Environment"
-                value={formData.configurationName}
-                onChange={(e) => handleInputChange('configurationName', e.target.value)}
-                className="pl-10"
-                required
-              />
-            </div>
-          </div>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="configurationName">Configuration Name</Label>
+                <div className="relative">
+                  <Plus className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="configurationName"
+                    placeholder="e.g., Production Environment"
+                    value={formData.configurationName}
+                    onChange={(e) => handleInputChange('configurationName', e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="environmentName">Environment</Label>
-            <Select 
-              value={formData.environmentName} 
-              onValueChange={(value) => handleInputChange('environmentName', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select environment type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="production">Production</SelectItem>
-                <SelectItem value="sandbox">Sandbox</SelectItem>
-                <SelectItem value="validation">Validation</SelectItem>
-                <SelectItem value="development">Development</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="environmentName">Environment</Label>
+                <Select 
+                  value={formData.environmentName} 
+                  onValueChange={(value) => handleInputChange('environmentName', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select environment type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="production">Production</SelectItem>
+                    <SelectItem value="sandbox">Sandbox</SelectItem>
+                    <SelectItem value="validation">Validation</SelectItem>
+                    <SelectItem value="development">Development</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="veevaUrl">Veeva CTMS URL</Label>
-            <div className="relative">
-              <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="veevaUrl"
-                type="url"
-                placeholder="https://your-instance.veevavault.com"
-                value={formData.veevaUrl}
-                onChange={(e) => handleInputChange('veevaUrl', e.target.value)}
-                className="pl-10"
-                required
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Your Veeva CTMS instance URL (e.g., https://company.veevavault.com)
-            </p>
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="veevaUrl">Veeva CTMS URL</Label>
+                <div className="relative">
+                  <Globe className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="veevaUrl"
+                    type="url"
+                    placeholder="https://your-instance.veevavault.com"
+                    value={formData.veevaUrl}
+                    onChange={(e) => handleInputChange('veevaUrl', e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Your Veeva CTMS instance URL (e.g., https://company.veevavault.com)
+                </p>
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="username">Username</Label>
-            <div className="relative">
-              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="username"
-                placeholder="Your Veeva CTMS username"
-                value={formData.username}
-                onChange={(e) => handleInputChange('username', e.target.value)}
-                className="pl-10"
-                required
-              />
-            </div>
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="username"
+                    placeholder="Your Veeva CTMS username"
+                    value={formData.username}
+                    onChange={(e) => handleInputChange('username', e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+              </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <div className="relative">
-              <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="password"
-                type="password"
-                placeholder="Your Veeva CTMS password"
-                value={formData.password}
-                onChange={(e) => handleInputChange('password', e.target.value)}
-                className="pl-10"
-                required
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Your credentials are encrypted and stored securely
-            </p>
-          </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="Your Veeva CTMS password"
+                    value={formData.password}
+                    onChange={(e) => handleInputChange('password', e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Your credentials are encrypted and stored securely
+                </p>
+              </div>
 
-          <div className="flex justify-end gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="clinical"
-              disabled={isLoading}
-            >
-              {isLoading ? "Testing Connection..." : "Save & Test Connection"}
-            </Button>
-          </div>
-        </form>
+              <div className="flex justify-end gap-3 pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="clinical"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Testing Connection..." : "Save & Test Connection"}
+                </Button>
+              </div>
+            </form>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
