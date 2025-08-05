@@ -34,6 +34,20 @@ const VeevaConfigurationDialog = ({ onConfigurationSaved }: VeevaConfigurationDi
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("User not authenticated");
 
+      // Check if configuration with same environment, URL, and username already exists
+      const { data: existingConfig } = await supabase
+        .from('veeva_configurations')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('environment_name', formData.environmentName)
+        .eq('veeva_url', formData.veevaUrl)
+        .eq('username', formData.username)
+        .maybeSingle();
+
+      if (existingConfig) {
+        throw new Error('A configuration with this environment, URL, and username combination already exists');
+      }
+
       // First deactivate any existing configurations for this user
       await supabase
         .from('veeva_configurations')
