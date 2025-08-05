@@ -35,26 +35,19 @@ const VeevaConfigurationDialog = ({ onConfigurationSaved }: VeevaConfigurationDi
       if (!user) throw new Error("User not authenticated");
 
       // Check if configuration with same environment, URL, and username already exists
-      const { data: existingConfig } = await supabase
+      const { data: existingConfigs } = await supabase
         .from('veeva_configurations')
         .select('id')
         .eq('user_id', user.id)
         .eq('environment_name', formData.environmentName)
         .eq('veeva_url', formData.veevaUrl)
-        .eq('username', formData.username)
-        .maybeSingle();
+        .eq('username', formData.username);
 
-      if (existingConfig) {
+      if (existingConfigs && existingConfigs.length > 0) {
         throw new Error('A configuration with this environment, URL, and username combination already exists');
       }
 
-      // First deactivate any existing configurations for this user
-      await supabase
-        .from('veeva_configurations')
-        .update({ is_active: false })
-        .eq('user_id', user.id);
-
-      // Save new configuration as active
+      // Save new configuration as inactive initially
       const { data: newConfig, error } = await supabase
         .from('veeva_configurations')
         .insert({
@@ -63,7 +56,7 @@ const VeevaConfigurationDialog = ({ onConfigurationSaved }: VeevaConfigurationDi
           environment_name: formData.environmentName,
           veeva_url: formData.veevaUrl,
           username: formData.username,
-          is_active: true, // Mark as active immediately
+          is_active: false, // Don't activate until user selects it
         })
         .select('id')
         .single();
@@ -123,9 +116,8 @@ const VeevaConfigurationDialog = ({ onConfigurationSaved }: VeevaConfigurationDi
   };
 
   const handleConfigurationDeleted = () => {
-    setShowSelector(false);
-    setIsOpen(false);
-    onConfigurationSaved();
+    // Don't close automatically on delete, let user see remaining configs
+    // Only close if no configs remain
   };
 
   return (
@@ -143,13 +135,16 @@ const VeevaConfigurationDialog = ({ onConfigurationSaved }: VeevaConfigurationDi
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Database className="h-5 w-5 text-primary" />
-                Active Veeva Configuration
+                Select Configuration
               </DialogTitle>
               <DialogDescription>
-                Your configuration was saved successfully. Review the details below.
+                Choose which configuration to activate for Veeva synchronization. The selected configuration will be used to get session ID and sync data.
               </DialogDescription>
             </DialogHeader>
-            <VeevaConfigurationSelector onConfigurationDeleted={handleConfigurationDeleted} />
+            <VeevaConfigurationSelector 
+              onConfigurationSelected={handleConfigurationSelected}
+              onConfigurationDeleted={handleConfigurationDeleted} 
+            />
             <div className="flex justify-end pt-4">
               <Button onClick={() => setIsOpen(false)}>
                 Close
