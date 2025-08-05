@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { CheckCircle, Settings, Globe, User, Trash2, Calendar, Database, Circle } from "lucide-react";
+import { CheckCircle, Settings, Globe, User, Trash2, Calendar, Database, Circle, Plus } from "lucide-react";
 
 interface Configuration {
   id: string;
@@ -21,9 +21,10 @@ interface Configuration {
 interface VeevaConfigurationSelectorProps {
   onConfigurationDeleted?: () => void;
   onConfigurationSelected?: () => void;
+  onAddNew?: () => void;
 }
 
-const VeevaConfigurationSelector = ({ onConfigurationDeleted, onConfigurationSelected }: VeevaConfigurationSelectorProps) => {
+const VeevaConfigurationSelector = ({ onConfigurationDeleted, onConfigurationSelected, onAddNew }: VeevaConfigurationSelectorProps) => {
   const [configurations, setConfigurations] = useState<Configuration[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -153,9 +154,13 @@ const VeevaConfigurationSelector = ({ onConfigurationDeleted, onConfigurationSel
       <div className="text-center py-8">
         <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
         <h3 className="text-lg font-semibold text-foreground mb-2">No Configurations Found</h3>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground mb-4">
           No Veeva CTMS configurations found. Please create a new configuration.
         </p>
+        <Button onClick={onAddNew} variant="clinical" className="gap-2">
+          <Plus className="h-4 w-4" />
+          Add Configuration
+        </Button>
       </div>
     );
   }
@@ -260,6 +265,13 @@ const VeevaConfigurationSelector = ({ onConfigurationDeleted, onConfigurationSel
           </CardContent>
         </Card>
       ))}
+      
+      <div className="mt-6 text-center">
+        <Button onClick={onAddNew} variant="outline" className="gap-2">
+          <Plus className="h-4 w-4" />
+          Add New Configuration
+        </Button>
+      </div>
     </div>
   );
 };

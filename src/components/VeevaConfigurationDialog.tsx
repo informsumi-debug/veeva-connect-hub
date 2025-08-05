@@ -16,7 +16,8 @@ interface VeevaConfigurationDialogProps {
 const VeevaConfigurationDialog = ({ onConfigurationSaved }: VeevaConfigurationDialogProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [showSelector, setShowSelector] = useState(false);
+  const [showSelector, setShowSelector] = useState(true);
+  const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     configurationName: "",
     environmentName: "",
@@ -92,7 +93,8 @@ const VeevaConfigurationDialog = ({ onConfigurationSaved }: VeevaConfigurationDi
         password: "",
       });
       
-      // Show configuration selector after successful save
+      // Return to configuration selector after successful save
+      setShowForm(false);
       setShowSelector(true);
     } catch (error: any) {
       toast({
@@ -130,20 +132,24 @@ const VeevaConfigurationDialog = ({ onConfigurationSaved }: VeevaConfigurationDi
       </DialogTrigger>
       
       <DialogContent className="sm:max-w-[500px]">
-        {showSelector ? (
+        {showSelector && !showForm ? (
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Database className="h-5 w-5 text-primary" />
-                Select Configuration
+                Veeva CTMS Configurations
               </DialogTitle>
               <DialogDescription>
-                Choose which configuration to activate for Veeva synchronization. The selected configuration will be used to get session ID and sync data.
+                Select an active configuration for Veeva synchronization or add a new one.
               </DialogDescription>
             </DialogHeader>
             <VeevaConfigurationSelector 
               onConfigurationSelected={handleConfigurationSelected}
-              onConfigurationDeleted={handleConfigurationDeleted} 
+              onConfigurationDeleted={handleConfigurationDeleted}
+              onAddNew={() => {
+                setShowSelector(false);
+                setShowForm(true);
+              }}
             />
             <div className="flex justify-end pt-4">
               <Button onClick={() => setIsOpen(false)}>
@@ -151,7 +157,7 @@ const VeevaConfigurationDialog = ({ onConfigurationSaved }: VeevaConfigurationDi
               </Button>
             </div>
           </>
-        ) : (
+        ) : showForm ? (
           <>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
@@ -254,9 +260,12 @@ const VeevaConfigurationDialog = ({ onConfigurationSaved }: VeevaConfigurationDi
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setIsOpen(false)}
+                  onClick={() => {
+                    setShowForm(false);
+                    setShowSelector(true);
+                  }}
                 >
-                  Cancel
+                  Back
                 </Button>
                 <Button
                   type="submit"
@@ -268,7 +277,7 @@ const VeevaConfigurationDialog = ({ onConfigurationSaved }: VeevaConfigurationDi
               </div>
             </form>
           </>
-        )}
+        ) : null}
       </DialogContent>
     </Dialog>
   );
