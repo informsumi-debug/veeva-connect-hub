@@ -5,6 +5,7 @@ import LoginForm from "@/components/auth/LoginForm";
 import Header from "@/components/Header";
 import StudyOverview from "@/components/StudyOverview";
 import MilestoneDashboard from "@/components/MilestoneDashboard";
+import MilestoneAnalyticsDashboard from "@/components/MilestoneAnalyticsDashboard";
 import StatusIndicator from "@/components/StatusIndicator";
 import VeevaConfigurationDialog from "@/components/VeevaConfigurationDialog";
 import { Button } from "@/components/ui/button";
@@ -157,6 +158,8 @@ const Index = () => {
         <StudyOverview />
         
         <MilestoneDashboard />
+        
+        <MilestoneAnalyticsDashboard />
       </main>
     </div>
   );

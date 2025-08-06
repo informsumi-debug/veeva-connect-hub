@@ -111,6 +111,25 @@ const MilestoneDashboard = () => {
       
       const configId = await getActiveConfigurationId()
       
+      // Check if we have an active session first
+      const { data: sessionData, error: sessionError } = await supabase
+        .from('veeva_sessions')
+        .select('session_id, expires_at')
+        .eq('configuration_id', configId)
+        .eq('is_active', true)
+        .gte('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+
+      if (sessionError || !sessionData || sessionData.length === 0) {
+        toast({
+          title: "Authentication Required",
+          description: "Please authenticate using 'Test Connection' button in your Veeva configuration, then try Sync with Veeva",
+          variant: "destructive"
+        })
+        return
+      }
+      
       const { data, error } = await supabase.functions.invoke('veeva-sync-data', {
         body: { configurationId: configId }
       })
@@ -121,7 +140,7 @@ const MilestoneDashboard = () => {
       if (data && !data.success && data.requiresAuth) {
         toast({
           title: "Authentication Required",
-          description: "Please authenticate first using the 'Test Connection' button in your Veeva configuration, then try syncing again.",
+          description: "Please authenticate using 'Test Connection' button in your Veeva configuration, then try Sync with Veeva",
           variant: "destructive"
         })
         return
